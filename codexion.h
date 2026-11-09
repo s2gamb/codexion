@@ -115,4 +115,9 @@ int			heap_peek(t_heap *heap, t_request *out);
 int			heap_push(t_heap *heap, t_request req);
 int			heap_pop(t_heap *heap, t_request *out);
 
+int			init_sim(t_sim *sim, t_config *config);
+void		cleanup_coders(t_sim *sim, int count);
+void		cleanup_dongles(t_sim *sim, int count);
+void		cleanup_sim(t_sim *sim);
+
 #endif

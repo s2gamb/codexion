@@ -4,7 +4,9 @@ SRC		= main.c \
 		  time_utils.c \
 		  log.c \
 		  heap.c \
-		  heap_utils.c
+		  heap_utils.c \
+		  init.c \
+		  cleanup.c
 
 OBJ  = $(SRC:.c=.o)
 CC   = cc
