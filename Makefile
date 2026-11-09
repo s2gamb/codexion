@@ -6,7 +6,9 @@ SRC		= main.c \
 		  heap.c \
 		  heap_utils.c \
 		  init.c \
-		  cleanup.c
+		  cleanup.c \
+		  dongle.c \
+		  coder.c
 
 OBJ  = $(SRC:.c=.o)
 CC   = cc

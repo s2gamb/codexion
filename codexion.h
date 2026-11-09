@@ -120,4 +120,8 @@ void		cleanup_coders(t_sim *sim, int count);
 void		cleanup_dongles(t_sim *sim, int count);
 void		cleanup_sim(t_sim *sim);
 
+int			dongle_acquire(t_dongle *dongle, t_coder *coder);
+void		dongle_release(t_dongle *dongle, t_coder *coder);
+void		*coder_routine(void *arg);
+
 #endif
