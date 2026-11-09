@@ -1,10 +1,12 @@
 NAME	= codexion
 SRC		= main.c \
 		  parse.c \
+		  time_utils.c \
+		  log.c
 
 OBJ  = $(SRC:.c=.o)
 CC   = cc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -Werror -pthread
 
 all: $(NAME)
 
