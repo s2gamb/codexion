@@ -2,7 +2,9 @@ NAME	= codexion
 SRC		= main.c \
 		  parse.c \
 		  time_utils.c \
-		  log.c
+		  log.c \
+		  heap.c \
+		  heap_utils.c
 
 OBJ  = $(SRC:.c=.o)
 CC   = cc

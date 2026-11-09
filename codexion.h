@@ -108,4 +108,11 @@ void		sleep_ms(t_sim *sim, long long ms);
 void		log_msg(t_coder *coder, const char *msg);
 void		log_burnout(t_coder *coder);
 
+int			heap_compare(t_request *a, t_request *b);
+int			heap_init(t_heap *heap, int capacity);
+void		heap_destroy(t_heap *heap);
+int			heap_peek(t_heap *heap, t_request *out);
+int			heap_push(t_heap *heap, t_request req);
+int			heap_pop(t_heap *heap, t_request *out);
+
 #endif
