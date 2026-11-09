@@ -1,13 +1,13 @@
 /* ************************************************************************** */
-/*										  */
-/*							  :::	   ::::::::   */
-/*	 codexion.h											:+:		 :+:	:+:   */
-/*							  +:+ +:+		  +:+	  */
-/*	 By: segambar <serge_gamb@yahoo.com>		+#+  +:+	   +#+		  */
-/*						  +#+#+#+#+#+	+#+		  */
-/*	 Created: 2026/11/03 14:36:36 by segambar		   #+#	  #+#		  */
-/*	 Updated: 2026/11/03 14:38:50 by segambar		  ###	########.fr		  */
-/*										  */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   codexion.h                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: segambar <serge_gamb@yahoo.com>            +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/11/03 14:36:36 by segambar          #+#    #+#             */
+/*   Updated: 2026/11/09 20:11:05 by segambar         ###   ########.fr       */
+/*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CODEXION_H
@@ -15,11 +15,15 @@
 
 # include <stdio.h>
 # include <string.h>
+# include <stdlib.h>
+# include <limits.h>
 
 # define ERROR 1
 # define TRUE 1
 # define FALSE 0
 # define OK 0
+# define SCHEDULER_FIFO 1
+# define SCHEDULER_EDF 2
 
 typedef struct s_config
 {

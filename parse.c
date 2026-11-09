@@ -6,47 +6,90 @@
 /*   By: segambar <serge_gamb@yahoo.com>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/03 15:33:32 by segambar          #+#    #+#             */
-/*   Updated: 2026/11/05 17:17:03 by segambar         ###   ########.fr       */
+/*   Updated: 2026/11/09 20:08:48 by segambar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-int	is_digit(char c)
+static int	parse_scheduler(const char *str, int *scheduler)
 {
-	if (c >= '0' && c <= '9')
-		return (TRUE);
-	return (FALSE);
+	if (strcmp(str, "fifo") == 0)
+	{
+		*scheduler = SCHEDULER_FIFO;
+		return (OK);
+	}
+	if (strcmp(str, "edf") == 0)
+	{
+		*scheduler = SCHEDULER_EDF;
+		return (OK);
+	}
+	return (ERROR);
 }
 
-int	check_all_digit(char *arg)
+static int	parse_pos_int(const char *str, int *out)
 {
-	int	l;
-	int	i;
+	long	num;
+	int		i;
 
+	if (!str || str[0] == '\0')
+		return (ERROR);
+	num = 0;
 	i = 0;
-	l = strlen(arg);
-	while (i < l)
-		if (!is_digit(arg[i++]))
+	while (str[i])
+	{
+		if (str[i] < '0' || str[i] > '9')
 			return (ERROR);
+		num = num * 10 + (str[i] - '0');
+		if (num > INT_MAX)
+			return (ERROR);
+		i++;
+	}
+	if (num <= 0)
+		return (ERROR);
+	*out = (int)num;
+	return (OK);
+}
+
+static int	populate_config(t_config *config, char **argv)
+{
+	int	error;
+
+	error = parse_pos_int(argv[1], &config->number_of_coders);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[2], &config->time_to_burnout);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[3], &config->time_to_compile);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[4], &config->time_to_debug);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[5], &config->time_to_refactor);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[6], &config->number_of_compiles_required);
+	if (error)
+		return (error);
+	error = parse_pos_int(argv[7], &config->dongle_cooldown);
+	if (error)
+		return (error);
 	return (OK);
 }
 
 int	parse(int argc, char **argv, t_config *config)
 {
-	int	n;
 	int	error;
 
 	if (argc != 9)
 		return (ERROR);
-	n = 1;
-	while (n < 8)
-	{
-		error = check_all_digit(argv[n]);
-		if (error)
-			return (error);
-		n++;
-	}
-	printf("%s\n", argv[8]);
+	error = populate_config(config, argv);
+	if (error)
+		return (error);
+	error = parse_scheduler(argv[8], &config->scheduler);
+	if (error)
+		return (error);
 	return (OK);
 }
