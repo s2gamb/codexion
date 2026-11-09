@@ -124,4 +124,7 @@ int			dongle_acquire(t_dongle *dongle, t_coder *coder);
 void		dongle_release(t_dongle *dongle, t_coder *coder);
 void		*coder_routine(void *arg);
 
+void		wake_all_coders(t_sim *sim);
+void		*monitor_routine(void *arg);
+
 #endif
