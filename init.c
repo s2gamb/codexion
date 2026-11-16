@@ -14,112 +14,96 @@
 
 static int	init_sim_mutexes(t_sim *sim)
 {
-	if (pthread_mutex_init(&sim->stop_mutex, NULL) != 0)
-		return (ERROR);
-	if (pthread_mutex_init(&sim->log_mutex, NULL) != 0)
-	{
-		pthread_mutex_destroy(&sim->stop_mutex);
-		return (ERROR);
-	}
-	if (pthread_mutex_init(&sim->counter_mutex, NULL) != 0)
-	{
-		pthread_mutex_destroy(&sim->stop_mutex);
-		pthread_mutex_destroy(&sim->log_mutex);
-		return (ERROR);
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Initializes the simulation-wide synchronization mutexes (`stop_mutex`,
+	**   `log_mutex`, and `counter_mutex`) with rollback destruction of any
+	**   previously initialized mutex if a later initialization fails.
+	**
+	** Callers:
+	**   - init_sim (init.c)
+	**
+	** Callees:
+	**   - pthread_mutex_init (POSIX)
+	**   - pthread_mutex_destroy (POSIX)
+	*/
 }
 
 static int	init_dongle_item(t_sim *sim, int i, int n)
 {
-	sim->dongles[i].id = i + 1;
-	sim->dongles[i].available_at = 0;
-	sim->dongles[i].is_in_use = 0;
-	if (pthread_mutex_init(&sim->dongles[i].mutex, NULL) != 0)
-		return (ERROR);
-	if (pthread_cond_init(&sim->dongles[i].cond, NULL) != 0)
-	{
-		pthread_mutex_destroy(&sim->dongles[i].mutex);
-		return (ERROR);
-	}
-	if (heap_init(&sim->dongles[i].heap, n + 2) != OK)
-	{
-		pthread_mutex_destroy(&sim->dongles[i].mutex);
-		pthread_cond_destroy(&sim->dongles[i].cond);
-		return (ERROR);
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Initializes a single dongle at index `i`: assigns its 1-based ID,
+	**   resets availability/usage state, initializes its mutex and condition
+	**   variable, and allocates its priority-queue heap with capacity `n + 2`.
+	**   Rolls back mutex/cond resources on partial failure.
+	**
+	** Callers:
+	**   - init_dongles (init.c)
+	**
+	** Callees:
+	**   - pthread_mutex_init (POSIX)
+	**   - pthread_cond_init (POSIX)
+	**   - pthread_mutex_destroy (POSIX)
+	**   - pthread_cond_destroy (POSIX)
+	**   - heap_init (heap_utils.c)
+	*/
 }
 
 static int	init_dongles(t_sim *sim)
 {
-	int	i;
-	int	n;
-
-	n = sim->config.number_of_coders;
-	sim->dongles = (t_dongle *)malloc(sizeof(t_dongle) * n);
-	if (!sim->dongles)
-		return (ERROR);
-	i = 0;
-	while (i < n)
-	{
-		if (init_dongle_item(sim, i, n) != OK)
-		{
-			cleanup_dongles(sim, i);
-			return (ERROR);
-		}
-		i++;
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Allocates the `t_dongle` array for `number_of_coders` dongles and
+	**   initializes each entry sequentially. If any item fails to initialize,
+	**   cleans up all previously initialized dongles to prevent leaks.
+	**
+	** Callers:
+	**   - init_sim (init.c)
+	**
+	** Callees:
+	**   - malloc (libc)
+	**   - init_dongle_item (init.c)
+	**   - cleanup_dongles (cleanup.c)
+	*/
 }
 
 static int	init_coders(t_sim *sim)
 {
-	int	i;
-	int	n;
-
-	n = sim->config.number_of_coders;
-	sim->coders = (t_coder *)malloc(sizeof(t_coder) * n);
-	if (!sim->coders)
-		return (ERROR);
-	memset(sim->coders, 0, sizeof(t_coder) * n);
-	i = 0;
-	while (i < n)
-	{
-		sim->coders[i].id = i + 1;
-		sim->coders[i].sim = sim;
-		sim->coders[i].dongle_left = &sim->dongles[i];
-		if (n > 1)
-			sim->coders[i].dongle_right = &sim->dongles[(i + 1) % n];
-		if (pthread_mutex_init(&sim->coders[i].mutex, NULL) != 0)
-		{
-			cleanup_coders(sim, i);
-			return (ERROR);
-		}
-		i++;
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Allocates and zero-initializes the `t_coder` array, assigns 1-based
+	**   coder IDs, wires left/right dongle pointers in a circular topology
+	**   (leaving `dongle_right` NULL when `number_of_coders == 1`), and
+	**   initializes each coder's mutex with rollback on failure.
+	**
+	** Callers:
+	**   - init_sim (init.c)
+	**
+	** Callees:
+	**   - malloc (libc)
+	**   - memset (libc)
+	**   - pthread_mutex_init (POSIX)
+	**   - cleanup_coders (cleanup.c)
+	*/
 }
 
 int	init_sim(t_sim *sim, t_config *config)
 {
-	sim->config = *config;
-	sim->start_time = 0;
-	sim->stop_flag = 0;
-	sim->arrival_counter = 0;
-	sim->coders = NULL;
-	sim->dongles = NULL;
-	if (init_sim_mutexes(sim) != OK)
-		return (ERROR);
-	if (init_dongles(sim) != OK)
-	{
-		cleanup_sim(sim);
-		return (ERROR);
-	}
-	if (init_coders(sim) != OK)
-	{
-		cleanup_sim(sim);
-		return (ERROR);
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Initializes the entire `t_sim` structure from a validated `t_config`:
+	**   resets counters/flags/pointers, initializes global mutexes, allocates
+	**   and initializes dongles, and allocates and initializes coders, calling
+	**   cleanup_sim on failure so no partially initialized state leaks.
+	**
+	** Callers:
+	**   - main (main.c)
+	**
+	** Callees:
+	**   - init_sim_mutexes (init.c)
+	**   - init_dongles (init.c)
+	**   - init_coders (init.c)
+	**   - cleanup_sim (cleanup.c)
+	*/
 }

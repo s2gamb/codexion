@@ -14,45 +14,64 @@
 
 int	heap_compare(t_request *a, t_request *b)
 {
-	if (a->priority_key < b->priority_key)
-		return (-1);
-	if (a->priority_key > b->priority_key)
-		return (1);
-	if (a->arrival_id < b->arrival_id)
-		return (-1);
-	if (a->arrival_id > b->arrival_id)
-		return (1);
-	return (0);
+	/*
+	** Justification:
+	**   Defines the min-heap ordering for dongle requests: compares
+	**   `priority_key` first (arrival order for FIFO, burnout deadline for
+	**   EDF) and breaks ties deterministically using `arrival_id`.
+	**
+	** Callers:
+	**   - sift_up (heap.c)
+	**   - sift_down (heap.c)
+	**
+	** Callees:
+	**   - None
+	*/
 }
 
 int	heap_init(t_heap *heap, int capacity)
 {
-	if (capacity <= 0)
-		capacity = 4;
-	heap->requests = (t_request *)malloc(sizeof(t_request) * capacity);
-	if (!heap->requests)
-		return (ERROR);
-	heap->size = 0;
-	heap->capacity = capacity;
-	return (OK);
+	/*
+	** Justification:
+	**   Allocates the backing `t_request` array for a dongle's priority heap
+	**   (clamping non-positive capacity to 4) and initializes `size` and
+	**   `capacity`.
+	**
+	** Callers:
+	**   - init_dongle_item (init.c)
+	**
+	** Callees:
+	**   - malloc (libc)
+	*/
 }
 
 void	heap_destroy(t_heap *heap)
 {
-	if (heap->requests)
-	{
-		free(heap->requests);
-		heap->requests = NULL;
-	}
-	heap->size = 0;
-	heap->capacity = 0;
+	/*
+	** Justification:
+	**   Frees the heap's backing `requests` buffer if allocated and resets
+	**   `requests`, `size`, and `capacity` to safe empty values.
+	**
+	** Callers:
+	**   - cleanup_dongles (cleanup.c)
+	**
+	** Callees:
+	**   - free (libc)
+	*/
 }
 
 int	heap_peek(t_heap *heap, t_request *out)
 {
-	if (!heap || heap->size == 0)
-		return (ERROR);
-	if (out)
-		*out = heap->requests[0];
-	return (OK);
+	/*
+	** Justification:
+	**   Inspects the highest-priority (minimum) request at index 0 without
+	**   removing it, allowing `dongle_acquire` to check whether the calling
+	**   coder is next in line before popping.
+	**
+	** Callers:
+	**   - dongle_acquire (dongle.c)
+	**
+	** Callees:
+	**   - None
+	*/
 }

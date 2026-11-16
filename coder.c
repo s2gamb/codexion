@@ -14,74 +14,97 @@
 
 static void	coder_single(t_coder *coder)
 {
-	dongle_acquire(coder->dongle_left, coder);
-	while (!sim_is_stopped(coder->sim))
-		usleep(500);
-	dongle_release(coder->dongle_left, coder);
+	/*
+	** Justification:
+	**   Handles the single-coder edge case (`number_of_coders == 1`) where a
+	**   second dongle does not exist: acquires the sole dongle, waits until
+	**   the monitor stops the simulation due to burnout, and releases it.
+	**
+	** Callers:
+	**   - coder_routine (coder.c)
+	**
+	** Callees:
+	**   - dongle_acquire (dongle.c)
+	**   - sim_is_stopped (time_utils.c)
+	**   - usleep (POSIX)
+	**   - dongle_release (dongle.c)
+	*/
 }
 
 static int	coder_take_dongles(t_coder *coder)
 {
-	t_dongle	*first;
-	t_dongle	*second;
-
-	first = coder->dongle_left;
-	second = coder->dongle_right;
-	if (first->id > second->id)
-	{
-		first = coder->dongle_right;
-		second = coder->dongle_left;
-	}
-	if (dongle_acquire(first, coder) != OK)
-		return (ERROR);
-	if (dongle_acquire(second, coder) != OK)
-	{
-		dongle_release(first, coder);
-		return (ERROR);
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Acquires both adjacent dongles in canonical ascending `id` order to
+	**   prevent circular-wait deadlocks. If acquiring the second dongle fails
+	**   (e.g., simulation stopped), releases the first dongle before returning
+	**   ERROR.
+	**
+	** Callers:
+	**   - coder_routine (coder.c)
+	**
+	** Callees:
+	**   - dongle_acquire (dongle.c)
+	**   - dongle_release (dongle.c)
+	*/
 }
 
 static void	coder_compile(t_coder *coder)
 {
-	pthread_mutex_lock(&coder->mutex);
-	coder->last_compile_start = now_ms();
-	coder->compile_count++;
-	pthread_mutex_unlock(&coder->mutex);
-	log_msg(coder, MSG_COMPILE);
-	sleep_ms(coder->sim, coder->sim->config.time_to_compile);
+	/*
+	** Justification:
+	**   Executes the compile phase: updates `last_compile_start` and
+	**   increments `compile_count` under `coder->mutex` for monitor tracking,
+	**   logs the compile event, and sleeps for `time_to_compile`.
+	**
+	** Callers:
+	**   - coder_routine (coder.c)
+	**
+	** Callees:
+	**   - pthread_mutex_lock (POSIX)
+	**   - now_ms (time_utils.c)
+	**   - pthread_mutex_unlock (POSIX)
+	**   - log_msg (log.c)
+	**   - sleep_ms (time_utils.c)
+	*/
 }
 
 static void	coder_debug_and_refactor(t_coder *coder)
 {
-	log_msg(coder, MSG_DEBUG);
-	sleep_ms(coder->sim, coder->sim->config.time_to_debug);
-	if (sim_is_stopped(coder->sim))
-		return ;
-	log_msg(coder, MSG_REFACTOR);
-	sleep_ms(coder->sim, coder->sim->config.time_to_refactor);
+	/*
+	** Justification:
+	**   Executes the post-compile debug and refactor phases in sequence,
+	**   logging each state and sleeping for its configured duration, with an
+	**   early stop check between debugging and refactoring.
+	**
+	** Callers:
+	**   - coder_routine (coder.c)
+	**
+	** Callees:
+	**   - log_msg (log.c)
+	**   - sleep_ms (time_utils.c)
+	**   - sim_is_stopped (time_utils.c)
+	*/
 }
 
 void	*coder_routine(void *arg)
 {
-	t_coder	*coder;
-
-	coder = (t_coder *)arg;
-	if (!coder->dongle_right)
-	{
-		coder_single(coder);
-		return (NULL);
-	}
-	while (!sim_is_stopped(coder->sim))
-	{
-		if (coder_take_dongles(coder) != OK)
-			break ;
-		coder_compile(coder);
-		dongle_release(coder->dongle_left, coder);
-		dongle_release(coder->dongle_right, coder);
-		if (sim_is_stopped(coder->sim))
-			break ;
-		coder_debug_and_refactor(coder);
-	}
-	return (NULL);
+	/*
+	** Justification:
+	**   Thread entry point for each coder. Routes single-coder runs to
+	**   `coder_single`, and otherwise loops through acquiring both dongles,
+	**   compiling, releasing both dongles, and debugging/refactoring until the
+	**   simulation stops.
+	**
+	** Callers:
+	**   - start_coders (main.c; via pthread_create)
+	**
+	** Callees:
+	**   - coder_single (coder.c)
+	**   - sim_is_stopped (time_utils.c)
+	**   - coder_take_dongles (coder.c)
+	**   - coder_compile (coder.c)
+	**   - dongle_release (dongle.c)
+	**   - coder_debug_and_refactor (coder.c)
+	*/
 }

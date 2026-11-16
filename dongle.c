@@ -14,94 +14,103 @@
 
 static long long	get_priority_key(t_coder *coder, long long arrival)
 {
-	long long	key;
-
-	if (coder->sim->config.scheduler == SCHEDULER_FIFO)
-		return (arrival);
-	pthread_mutex_lock(&coder->mutex);
-	key = coder->last_compile_start + coder->sim->config.time_to_burnout;
-	pthread_mutex_unlock(&coder->mutex);
-	return (key);
+	/*
+	** Justification:
+	**   Computes the scheduling priority key for a dongle request: returns the
+	**   monotonic `arrival` sequence number for FIFO, or the coder's burnout
+	**   deadline (`last_compile_start + time_to_burnout`, read under
+	**   `coder->mutex`) for EDF.
+	**
+	** Callers:
+	**   - register_request (dongle.c)
+	**
+	** Callees:
+	**   - pthread_mutex_lock (POSIX)
+	**   - pthread_mutex_unlock (POSIX)
+	*/
 }
 
 static void	dongle_wait(t_dongle *dongle)
 {
-	struct timespec	ts;
-	long long		now;
-	long long		wait_ms;
-
-	now = now_ms();
-	wait_ms = 5;
-	if (dongle->available_at > now)
-	{
-		wait_ms = dongle->available_at - now;
-		if (wait_ms > 10)
-			wait_ms = 10;
-	}
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_nsec += wait_ms * 1000000;
-	if (ts.tv_nsec >= 1000000000)
-	{
-		ts.tv_sec += ts.tv_nsec / 1000000000;
-		ts.tv_nsec %= 1000000000;
-	}
-	pthread_cond_timedwait(&dongle->cond, &dongle->mutex, &ts);
+	/*
+	** Justification:
+	**   Performs a bounded timed wait (capped at 5-10 ms) on `dongle->cond`
+	**   under `dongle->mutex` so waiting coders sleep instead of busy-spinning
+	**   while still waking up promptly when cooldown expires or the simulation
+	**   stops.
+	**
+	** Callers:
+	**   - dongle_acquire (dongle.c)
+	**
+	** Callees:
+	**   - now_ms (time_utils.c)
+	**   - clock_gettime (POSIX)
+	**   - pthread_cond_timedwait (POSIX)
+	*/
 }
 
 static int	register_request(t_dongle *dongle, t_coder *coder)
 {
-	t_request	req;
-
-	req.coder_id = coder->id;
-	pthread_mutex_lock(&coder->sim->counter_mutex);
-	coder->sim->arrival_counter++;
-	req.arrival_id = coder->sim->arrival_counter;
-	pthread_mutex_unlock(&coder->sim->counter_mutex);
-	req.priority_key = get_priority_key(coder, req.arrival_id);
-	pthread_mutex_lock(&dongle->mutex);
-	if (heap_push(&dongle->heap, req) != OK)
-	{
-		pthread_mutex_unlock(&dongle->mutex);
-		return (ERROR);
-	}
-	return (OK);
+	/*
+	** Justification:
+	**   Assigns a globally unique `arrival_id` under `counter_mutex`, computes
+	**   the coder's priority key, locks `dongle->mutex`, and pushes the request
+	**   into the dongle's min-heap. Leaves `dongle->mutex` locked on success
+	**   for `dongle_acquire`'s wait loop.
+	**
+	** Callers:
+	**   - dongle_acquire (dongle.c)
+	**
+	** Callees:
+	**   - pthread_mutex_lock (POSIX)
+	**   - pthread_mutex_unlock (POSIX)
+	**   - get_priority_key (dongle.c)
+	**   - heap_push (heap.c)
+	*/
 }
 
 int	dongle_acquire(t_dongle *dongle, t_coder *coder)
 {
-	t_request	top;
-
-	if (register_request(dongle, coder) != OK)
-		return (ERROR);
-	while (!sim_is_stopped(coder->sim))
-	{
-		if (!dongle->is_in_use && now_ms() >= dongle->available_at)
-		{
-			if (heap_peek(&dongle->heap, &top) == OK
-				&& top.coder_id == coder->id)
-				break ;
-		}
-		dongle_wait(dongle);
-	}
-	if (sim_is_stopped(coder->sim))
-	{
-		pthread_mutex_unlock(&dongle->mutex);
-		return (ERROR);
-	}
-	heap_pop(&dongle->heap, NULL);
-	dongle->is_in_use = 1;
-	pthread_mutex_unlock(&dongle->mutex);
-	log_msg(coder, MSG_TAKEN);
-	return (OK);
+	/*
+	** Justification:
+	**   Enqueues the coder's request on `dongle`, waits until the simulation
+	**   stops or the dongle is free, past its cooldown, and this coder sits at
+	**   the top of the priority heap, then pops the request, marks the dongle
+	**   in use, unlocks, and logs acquisition.
+	**
+	** Callers:
+	**   - coder_single (coder.c)
+	**   - coder_take_dongles (coder.c)
+	**
+	** Callees:
+	**   - register_request (dongle.c)
+	**   - sim_is_stopped (time_utils.c)
+	**   - now_ms (time_utils.c)
+	**   - heap_peek (heap_utils.c)
+	**   - dongle_wait (dongle.c)
+	**   - pthread_mutex_unlock (POSIX)
+	**   - heap_pop (heap.c)
+	**   - log_msg (log.c)
+	*/
 }
 
 void	dongle_release(t_dongle *dongle, t_coder *coder)
 {
-	if (!dongle)
-		return ;
-	pthread_mutex_lock(&dongle->mutex);
-	dongle->is_in_use = 0;
-	dongle->available_at = now_ms() + coder->sim->config.dongle_cooldown;
-	pthread_cond_broadcast(&dongle->cond);
-	pthread_mutex_unlock(&dongle->mutex);
+	/*
+	** Justification:
+	**   Marks `dongle` as available again under `dongle->mutex`, sets its next
+	**   `available_at` timestamp according to `dongle_cooldown`, and broadcasts
+	**   on `dongle->cond` to wake waiting coders.
+	**
+	** Callers:
+	**   - coder_single (coder.c)
+	**   - coder_take_dongles (coder.c)
+	**   - coder_routine (coder.c)
+	**
+	** Callees:
+	**   - pthread_mutex_lock (POSIX)
+	**   - now_ms (time_utils.c)
+	**   - pthread_cond_broadcast (POSIX)
+	**   - pthread_mutex_unlock (POSIX)
+	*/
 }

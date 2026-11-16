@@ -14,82 +14,66 @@
 
 static int	parse_scheduler(const char *str, int *scheduler)
 {
-	if (strcmp(str, "fifo") == 0)
-	{
-		*scheduler = SCHEDULER_FIFO;
-		return (OK);
-	}
-	if (strcmp(str, "edf") == 0)
-	{
-		*scheduler = SCHEDULER_EDF;
-		return (OK);
-	}
-	return (ERROR);
+	/*
+	** Justification:
+	**   Translates the scheduler CLI argument string ("fifo" or "edf") into
+	**   the internal SCHEDULER_FIFO or SCHEDULER_EDF constant, rejecting any
+	**   unrecognized scheduling policy with ERROR.
+	**
+	** Callers:
+	**   - parse (parse.c)
+	**
+	** Callees:
+	**   - strcmp (libc)
+	*/
 }
 
 static int	parse_int(const char *str, int *out, long min)
 {
-	long	num;
-	int		i;
-
-	if (!str || str[0] == '\0')
-		return (ERROR);
-	num = 0;
-	i = 0;
-	while (str[i])
-	{
-		if (str[i] < '0' || str[i] > '9')
-			return (ERROR);
-		num = num * 10 + (str[i] - '0');
-		if (num > INT_MAX)
-			return (ERROR);
-		i++;
-	}
-	if (num < min)
-		return (ERROR);
-	*out = (int)num;
-	return (OK);
+	/*
+	** Justification:
+	**   Strictly parses a non-empty, digit-only string into a bounded `int`
+	**   value (>= `min` and <= INT_MAX), avoiding undefined overflow or
+	**   trailing-character acceptance found in atoi/strtol wrappers.
+	**
+	** Callers:
+	**   - populate_config (parse.c)
+	**
+	** Callees:
+	**   - None
+	*/
 }
 
 static int	populate_config(t_config *config, char **argv)
 {
-	int	error;
-
-	error = parse_int(argv[1], &config->number_of_coders, 1);
-	if (error)
-		return (error);
-	error = parse_int(argv[2], &config->time_to_burnout, 1);
-	if (error)
-		return (error);
-	error = parse_int(argv[3], &config->time_to_compile, 0);
-	if (error)
-		return (error);
-	error = parse_int(argv[4], &config->time_to_debug, 0);
-	if (error)
-		return (error);
-	error = parse_int(argv[5], &config->time_to_refactor, 0);
-	if (error)
-		return (error);
-	error = parse_int(argv[6], &config->number_of_compiles_required, 1);
-	if (error)
-		return (error);
-	error = parse_int(argv[7], &config->dongle_cooldown, 0);
-	if (error)
-		return (error);
-	return (OK);
+	/*
+	** Justification:
+	**   Populates all seven numeric simulation parameters in `t_config` from
+	**   argv[1..7], enforcing parameter-specific lower bounds (minimum 1 for
+	**   coder count, burnout time, and required compiles; minimum 0 for
+	**   compile/debug/refactor durations and dongle cooldown).
+	**
+	** Callers:
+	**   - parse (parse.c)
+	**
+	** Callees:
+	**   - parse_int (parse.c)
+	*/
 }
 
 int	parse(int argc, char **argv, t_config *config)
 {
-	int	error;
-
-	if (argc != 9)
-		return (ERROR);
-	error = populate_config(config, argv);
-	if (error)
-		return (error);
-	error = parse_scheduler(argv[8], &config->scheduler);
-	if (error)
-		return (error);
-	return (OK);
+	/*
+	** Justification:
+	**   Top-level CLI argument validator. Verifies the exact argument count
+	**   (argc == 9), delegates numeric configuration parsing to populate_config,
+	**   and parses the scheduler policy from argv[8].
+	**
+	** Callers:
+	**   - main (main.c)
+	**
+	** Callees:
+	**   - populate_config (parse.c)
+	**   - parse_scheduler (parse.c)
+	*/
 }
