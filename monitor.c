@@ -6,31 +6,41 @@
 /*   By: segambar <serge_gamb@yahoo.com>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/09 21:47:00 by segambar          #+#    #+#             */
-/*   Updated: 2026/11/09 21:47:00 by segambar         ###   ########.fr       */
+/*   Updated: 2026/11/17 17:49:27 by segambar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
+/*
+** Justification:
+**   Broadcasts on every dongle's condition variable so any coder thread
+**   blocked in `dongle_wait` wakes immediately when the simulation stops
+**   or fails during startup.
+**
+** Callers:
+**   - start_coders (main.c)
+**   - run_sim (main.c)
+**   - check_coder_burnout (monitor.c)
+**   - check_all_completed (monitor.c)
+**
+** Callees:
+**   - pthread_mutex_lock (POSIX)
+**   - pthread_cond_broadcast (POSIX)
+**   - pthread_mutex_unlock (POSIX)
+*/
 void	wake_all_coders(t_sim *sim)
 {
-	/*
-	** Justification:
-	**   Broadcasts on every dongle's condition variable so any coder thread
-	**   blocked in `dongle_wait` wakes immediately when the simulation stops
-	**   or fails during startup.
-	**
-	** Callers:
-	**   - start_coders (main.c)
-	**   - run_sim (main.c)
-	**   - check_coder_burnout (monitor.c)
-	**   - check_all_completed (monitor.c)
-	**
-	** Callees:
-	**   - pthread_mutex_lock (POSIX)
-	**   - pthread_cond_broadcast (POSIX)
-	**   - pthread_mutex_unlock (POSIX)
-	*/
+	int	i;
+
+	i = 0;
+	while (i < sim->config.number_of_coders)
+	{
+		pthread_mutex_lock(&sim->dongles[i].mutex);
+		pthread_cond_broadcast(&sim->dongles[i].cond);
+		pthread_mutex_unlock(&sim->dongles[i].mutex);
+		i++;
+	}
 }
 
 static int	check_coder_burnout(t_coder *coder)

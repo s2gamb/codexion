@@ -6,7 +6,7 @@
 /*   By: segambar <serge_gamb@yahoo.com>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/09 20:50:00 by segambar          #+#    #+#             */
-/*   Updated: 2026/11/09 20:58:00 by segambar         ###   ########.fr       */
+/*   Updated: 2026/11/17 17:47:26 by segambar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,24 +76,27 @@ int	sim_is_stopped(t_sim *sim)
 	*/
 }
 
+/*
+** Justification:
+**   Thread-safe writer that sets `sim->stop_flag = 1` under `stop_mutex`
+**   to signal all threads to exit cleanly upon burnout, completion, or
+**   startup failure.
+**
+** Callers:
+**   - start_coders (main.c)
+**   - run_sim (main.c)
+**   - log_burnout (log.c)
+**   - check_all_completed (monitor.c)
+**
+** Callees:
+**   - pthread_mutex_lock (POSIX)
+**   - pthread_mutex_unlock (POSIX)
+*/
 void	sim_set_stopped(t_sim *sim)
 {
-	/*
-	** Justification:
-	**   Thread-safe writer that sets `sim->stop_flag = 1` under `stop_mutex`
-	**   to signal all threads to exit cleanly upon burnout, completion, or
-	**   startup failure.
-	**
-	** Callers:
-	**   - start_coders (main.c)
-	**   - run_sim (main.c)
-	**   - log_burnout (log.c)
-	**   - check_all_completed (monitor.c)
-	**
-	** Callees:
-	**   - pthread_mutex_lock (POSIX)
-	**   - pthread_mutex_unlock (POSIX)
-	*/
+	pthread_mutex_lock(&sim->stop_mutex);
+	sim->stop_flag = 1;
+	pthread_mutex_unlock(&sim->stop_mutex);
 }
 
 void	sleep_ms(t_sim *sim, long long ms)
